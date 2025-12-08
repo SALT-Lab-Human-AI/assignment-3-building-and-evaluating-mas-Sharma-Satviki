@@ -5,7 +5,7 @@ system:
   name: "Multi-Agent Research Assistant"
   topic: "HCI Research"  # Change this to your chosen topic
   max_iterations: 10
-  timeout_seconds: 180  # Reduced to 3 minutes for faster feedback
+  timeout_seconds: 500  # Reduced to 3 minutes for faster feedback
 
 agents:
   planner:
