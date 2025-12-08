@@ -1,173 +1,132 @@
 [
   {
     "id": 1,
-    "query": "What are the key principles of explainable AI for novice users?",
+    "query": "What is explainable AI?",
     "category": "explainable_ai",
     "expected_topics": [
-      "transparency",
-      "interpretability",
-      "user understanding",
-      "trust"
+      "simple explanations",
+      "transparency"
     ],
-    "ground_truth": "Explainable AI for novices should focus on transparency, simple visualizations, interactive explanations, and building user trust through understandable model behavior.",
+    "ground_truth": "Explainable AI means an AI system clearly shows why it made a decision.",
     "expected_sources": [
-      "academic papers on XAI",
-      "HCI research on AI transparency",
-      "user studies"
+      "intro XAI articles"
     ]
   },
   {
     "id": 2,
-    "query": "How has AR usability evolved in the past 5 years?",
+    "query": "What recent improvements make AR easier to use?",
     "category": "ar_usability",
     "expected_topics": [
-      "interaction techniques",
-      "user experience",
-      "hardware improvements",
-      "application domains"
+      "better tracking",
+      "smoother interactions"
     ],
-    "ground_truth": null,
+    "ground_truth": "AR is easier now due to better tracking and more responsive interactions.",
     "expected_sources": [
-      "recent AR research papers",
-      "CHI conference proceedings",
-      "industry reports"
+      "AR usability summaries"
     ]
   },
   {
     "id": 3,
-    "query": "What are ethical considerations in using AI for education?",
+    "query": "What is one ethical issue of AI in education?",
     "category": "ai_ethics",
     "expected_topics": [
-      "bias",
       "privacy",
-      "accessibility",
-      "transparency",
-      "student autonomy"
+      "fairness"
     ],
-    "ground_truth": null,
+    "ground_truth": "A key issue is protecting student data privacy.",
     "expected_sources": [
-      "ethics papers",
-      "educational technology research",
-      "policy documents"
+      "AI ethics overviews"
     ]
   },
   {
     "id": 4,
-    "query": "Compare different approaches to measuring user experience in mobile applications",
+    "query": "How can we measure user experience in a mobile app?",
     "category": "ux_measurement",
     "expected_topics": [
-      "questionnaires",
-      "analytics",
-      "user testing",
-      "physiological measures"
+      "surveys",
+      "user testing"
     ],
     "ground_truth": null,
     "expected_sources": [
-      "UX research papers",
-      "methodological papers",
-      "case studies"
+      "UX method summaries"
     ]
   },
   {
     "id": 5,
-    "query": "What are the latest developments in conversational AI for healthcare?",
+    "query": "How are chatbots used in healthcare?",
     "category": "conversational_ai",
     "expected_topics": [
-      "chatbots",
-      "patient interaction",
-      "clinical decision support",
-      "privacy concerns"
+      "patient help",
+      "information support"
     ],
     "ground_truth": null,
     "expected_sources": [
-      "medical informatics papers",
-      "healthcare AI research",
-      "clinical studies"
+      "health AI summaries"
     ]
   },
   {
     "id": 6,
-    "query": "How do design patterns for accessibility differ across web and mobile platforms?",
+    "query": "What is one important accessibility feature on mobile?",
     "category": "accessibility",
     "expected_topics": [
       "screen readers",
-      "touch interfaces",
-      "WCAG guidelines",
-      "responsive design"
+      "touch support"
     ],
     "ground_truth": null,
     "expected_sources": [
-      "accessibility guidelines",
-      "comparative studies",
-      "design pattern libraries"
+      "accessibility guidelines"
     ]
   },
   {
     "id": 7,
-    "query": "What are best practices for visualizing uncertainty in data displays?",
+    "query": "What is one way to show uncertainty in a chart?",
     "category": "data_visualization",
     "expected_topics": [
-      "visual encoding",
-      "uncertainty representation",
-      "user comprehension",
-      "design guidelines"
+      "error bars",
+      "confidence ranges"
     ],
     "ground_truth": null,
     "expected_sources": [
-      "visualization research",
-      "perceptual studies",
-      "design guidelines"
+      "data visualization basics"
     ]
   },
   {
     "id": 8,
-    "query": "How can voice interfaces be designed for elderly users?",
+    "query": "How can voice systems support older adults?",
     "category": "voice_interfaces",
     "expected_topics": [
-      "age-related challenges",
-      "speech recognition",
-      "error handling",
-      "user preferences"
+      "clear prompts",
+      "easy commands"
     ],
     "ground_truth": null,
     "expected_sources": [
-      "aging and technology research",
-      "voice UI papers",
-      "user studies with elderly"
+      "voice UI studies"
     ]
   },
   {
     "id": 9,
-    "query": "What are emerging trends in AI-driven prototyping tools?",
+    "query": "How is AI used in design tools?",
     "category": "ai_prototyping",
     "expected_topics": [
-      "generative design",
-      "automation",
-      "designer collaboration",
-      "tool capabilities"
+      "auto suggestions",
+      "quick mockups"
     ],
     "ground_truth": null,
     "expected_sources": [
-      "design tools research",
-      "AI in design papers",
-      "industry tools and reviews"
+      "AI design tool research"
     ]
   },
   {
     "id": 10,
-    "query": "How do cultural factors influence mobile app design?",
+    "query": "Why should app design consider different cultures?",
     "category": "cross_cultural_design",
     "expected_topics": [
       "localization",
-      "cultural dimensions",
-      "user preferences",
-      "design adaptations"
+      "user preferences"
     ],
     "ground_truth": null,
     "expected_sources": [
-      "cross-cultural HCI research",
-      "cultural studies",
-      "international design case studies"
+      "cross-cultural HCI summaries"
     ]
   }
 ]
