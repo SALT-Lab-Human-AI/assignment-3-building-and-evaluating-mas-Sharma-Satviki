@@ -33,7 +33,7 @@ async def run_evaluation():
     from dotenv import load_dotenv
     from src.autogen_orchestrator import AutoGenOrchestrator
     from src.evaluation.evaluator import SystemEvaluator
-    
+
     # Load environment variables
     load_dotenv()
 
@@ -44,39 +44,39 @@ async def run_evaluation():
     # Initialize AutoGen orchestrator
     print("Initializing AutoGen orchestrator...")
     orchestrator = AutoGenOrchestrator(config)
-    
+
     # Initialize SystemEvaluator
     print("Initializing SystemEvaluator...")
     evaluator = SystemEvaluator(config, orchestrator=orchestrator)
-    
+
     # Run full evaluation
     print("\n" + "=" * 70)
     print("RUNNING FULL SYSTEM EVALUATION")
     print("=" * 70)
     print("\nThis will evaluate the system on test queries from data/example_queries.json")
     print("Evaluation results will be saved to outputs/\n")
-    
+
     try:
         report = await evaluator.evaluate_system("data/example_queries.json")
-        
+
         # Display summary
         print("\n" + "=" * 70)
         print("EVALUATION SUMMARY")
         print("=" * 70)
-        
+
         summary = report.get("summary", {})
         print(f"\nTotal Queries: {summary.get('total_queries', 0)}")
         print(f"Successful: {summary.get('successful', 0)}")
         print(f"Failed: {summary.get('failed', 0)}")
         print(f"Success Rate: {summary.get('success_rate', 0.0):.2%}")
-        
+
         scores = report.get("scores", {})
         print(f"\nOverall Average Score: {scores.get('overall_average', 0.0):.3f}")
-        
+
         print("\nScores by Criterion:")
         for criterion, score in scores.get("by_criterion", {}).items():
             print(f"  {criterion}: {score:.3f}")
-        
+
         # Error analysis
         error_analysis = report.get("error_analysis", {})
         if error_analysis.get("total_errors", 0) > 0:
@@ -85,7 +85,7 @@ async def run_evaluation():
             print("  Error Types:")
             for error_type, count in error_analysis.get("error_types", {}).items():
                 print(f"    {error_type}: {count}")
-        
+
         # Performance analysis
         perf_analysis = report.get("performance_analysis", {})
         if perf_analysis:
@@ -93,11 +93,11 @@ async def run_evaluation():
             print("  Score Distribution:")
             for range_name, count in perf_analysis.get("score_distribution", {}).items():
                 print(f"    {range_name}: {count}")
-        
+
         print("\n" + "=" * 70)
         print(f"Detailed results saved to outputs/")
         print("=" * 70)
-        
+
     except Exception as e:
         print(f"\n❌ Error during evaluation: {e}")
         import traceback

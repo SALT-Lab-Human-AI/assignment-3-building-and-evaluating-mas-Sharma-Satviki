@@ -23,7 +23,7 @@ def _run_async_in_thread(coro):
 class InputGuardrail:
     """
     Guardrail for checking input safety.
-    
+
     Uses LLM-based checks combined with pattern matching for comprehensive validation.
     """
 
@@ -36,10 +36,10 @@ class InputGuardrail:
         """
         self.config = config
         self.logger = logging.getLogger("safety.input_guardrail")
-        
+
         # Initialize LLM client
         self.llm_client = create_llm_client(config)
-        
+
         # Get system topic from config (handle both nested and flat config structures)
         system_config = config.get("system", {})
         if isinstance(system_config, dict):
@@ -106,14 +106,14 @@ class InputGuardrail:
         Check for toxic/harmful language using LLM.
         """
         violations = []
-        
+
         if not self.llm_client:
             return violations
-        
+
         try:
             # Use LLM to check for toxic language
             from src.guardrails.llm_safety_helper import check_content_safety_llm
-            
+
             loop = asyncio.get_event_loop()
             if loop.is_running():
                 import concurrent.futures
@@ -139,7 +139,7 @@ class InputGuardrail:
                         self.topic
                     )
                 )
-            
+
             if not result.get("safe", True):
                 category = result.get("category", "harmful_content")
                 if category == "HARMFUL":
@@ -150,7 +150,7 @@ class InputGuardrail:
                     })
         except Exception as e:
             self.logger.error(f"Error in toxic language check: {e}")
-        
+
         return violations
 
     def _check_prompt_injection(self, text: str) -> List[Dict[str, Any]]:
@@ -158,7 +158,7 @@ class InputGuardrail:
         Check for prompt injection attempts using pattern matching and LLM verification.
         """
         violations = []
-        
+
         # Check for common prompt injection patterns
         injection_patterns = [
             "ignore previous instructions",
@@ -177,13 +177,13 @@ class InputGuardrail:
         for pattern in injection_patterns:
             if pattern.lower() in text.lower():
                 found_patterns.append(pattern)
-        
+
         # If patterns found, verify with LLM if available
         if found_patterns:
             if self.llm_client:
                 try:
                     from src.guardrails.llm_safety_helper import check_content_safety_llm
-                    
+
                     loop = asyncio.get_event_loop()
                     if loop.is_running():
                         import concurrent.futures
@@ -209,7 +209,7 @@ class InputGuardrail:
                                 self.topic
                             )
                         )
-                    
+
                     if result.get("category") == "PROMPT_INJECTION":
                         violations.append({
                             "validator": "prompt_injection",
@@ -239,10 +239,10 @@ class InputGuardrail:
         Check if query is relevant to the system's topic using LLM.
         """
         violations = []
-        
+
         if not self.llm_client:
             return violations
-        
+
         try:
             loop = asyncio.get_event_loop()
             if loop.is_running():
@@ -252,7 +252,7 @@ class InputGuardrail:
                     result = future.result()
             else:
                 result = loop.run_until_complete(self._check_relevance_async(query))
-            
+
             if not result.get("relevant", True):
                 confidence = result.get("confidence", 0.5)
                 if confidence < 0.3:  # Low confidence that it's relevant
@@ -263,9 +263,9 @@ class InputGuardrail:
                     })
         except Exception as e:
             self.logger.error(f"Error in relevance check: {e}")
-        
+
         return violations
-    
+
     async def _check_relevance_async(self, query: str) -> Dict[str, Any]:
         """Async helper for relevance check."""
         return await check_relevance_llm(self.llm_client, query, self.topic, self.config)

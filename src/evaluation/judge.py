@@ -5,7 +5,7 @@ Uses LLMs to evaluate system outputs based on defined criteria.
 Example usage:
     # Initialize judge with config
     judge = LLMJudge(config)
-    
+
     # Evaluate a response
     result = await judge.evaluate(
         query="What is the capital of France?",
@@ -13,7 +13,7 @@ Example usage:
         sources=[],
         ground_truth="Paris"
     )
-    
+
     print(f"Overall Score: {result['overall_score']}")
     print(f"Criterion Scores: {result['criterion_scores']}")
 """
@@ -54,7 +54,7 @@ class LLMJudge:
         # Load evaluation criteria from config.yaml (evaluation.criteria)
         # Each criterion has: name, weight, description
         self.criteria = config.get("evaluation", {}).get("criteria", [])
-        
+
         # Initialize LLM client based on provider
         provider = self.model_config.get("provider", "openai")
         if provider == "openai" or provider == "vllm":
@@ -67,10 +67,10 @@ class LLMJudge:
                 self.client = None
         else:
             self.client = None
-        
+
         self.provider = provider
         self.logger.info(f"LLMJudge initialized with {len(self.criteria)} criteria, provider: {provider}")
- 
+
     async def evaluate(
         self,
         query: str,
@@ -123,11 +123,11 @@ class LLMJudge:
                 sources=sources,
                 ground_truth=ground_truth
             )
-            
+
             # Average scores from different perspectives
             avg_score = sum(s.get("score", 0.0) for s in scores) / len(scores) if scores else 0.0
             avg_reasoning = " | ".join([s.get("reasoning", "") for s in scores if s.get("reasoning")])
-            
+
             score_result = {
                 "score": avg_score,
                 "reasoning": avg_reasoning,
@@ -166,13 +166,13 @@ class LLMJudge:
         """
         criterion_name = criterion.get("name", "unknown")
         description = criterion.get("description", "")
-        
+
         # Create prompts for different judge perspectives
         perspectives = [
             ("academic", "You are an academic evaluator with expertise in research methodology and scholarly writing."),
             ("user_experience", "You are a user experience evaluator focused on clarity, usability, and practical value.")
         ]
-        
+
         scores = []
         for perspective_name, perspective_system in perspectives:
             try:
@@ -186,10 +186,10 @@ class LLMJudge:
                     perspective=perspective_name,
                     perspective_system=perspective_system
                 )
-                
+
                 judgment = await self._call_judge_llm(prompt, perspective_system)
                 score_value, reasoning = self._parse_judgment(judgment)
-                
+
                 scores.append({
                     "score": score_value,
                     "reasoning": reasoning,
@@ -198,7 +198,7 @@ class LLMJudge:
             except Exception as e:
                 self.logger.error(f"Error in {perspective_name} perspective for {criterion_name}: {e}")
                 # Continue with other perspectives
-        
+
         # If all perspectives failed, return a default score
         if not scores:
             scores.append({
@@ -206,7 +206,7 @@ class LLMJudge:
                 "reasoning": "All judge perspectives failed",
                 "perspective": "fallback"
             })
-        
+
         return scores
 
     def _create_judge_prompt(
@@ -266,16 +266,16 @@ class LLMJudge:
                 "0.9-1.0": "Exceptionally clear, well-structured, and easy to follow"
             }
         }
-        
+
         rubric = rubrics.get(criterion_name, {
             "0.0-0.5": "Below average",
             "0.6-0.7": "Average",
             "0.8-0.9": "Above average",
             "0.9-1.0": "Excellent"
         })
-        
+
         rubric_text = "\n".join([f"  {score_range}: {description}" for score_range, description in rubric.items()])
-        
+
         prompt = f"""{perspective_system}
 
 Evaluate the following response based on the criterion: **{criterion_name}**
@@ -330,18 +330,18 @@ Based on the scoring rubric above, evaluate the response for {criterion_name} on
         """
         if not self.client:
             raise ValueError(f"LLM client not initialized. Check API key environment variable.")
-        
+
         try:
             # Load model settings from config.yaml (models.judge)
             model_name = self.model_config.get("name", "llama-3.1-8b-instant")
             temperature = self.model_config.get("temperature", 0.3)
             max_tokens = self.model_config.get("max_tokens", 1024)
-            
+
             default_system = "You are an expert evaluator. Provide your evaluations in valid JSON format only."
             system_msg = system_message if system_message else default_system
-            
+
             self.logger.debug(f"Calling {self.provider} API with model: {model_name}")
-            
+
             # OpenAI or vLLM
             chat_completion = self.client.chat.completions.create(
                 model=model_name,
@@ -358,12 +358,12 @@ Based on the scoring rubric above, evaluate the response for {criterion_name} on
                 temperature=temperature,
                 max_tokens=max_tokens,
             )
-            
+
             response = chat_completion.choices[0].message.content
             self.logger.debug(f"Received response: {response[:100]}...")
-            
+
             return response
-            
+
         except Exception as e:
             self.logger.error(f"Error calling {self.provider} API: {e}")
             raise
@@ -371,14 +371,14 @@ Based on the scoring rubric above, evaluate the response for {criterion_name} on
     def _parse_judgment(self, judgment: str) -> tuple:
         """
         Parse LLM judgment response with robust error handling.
-        
+
         Returns:
             Tuple of (score, reasoning)
         """
         try:
             # Clean up the response - remove markdown code blocks if present
             judgment_clean = judgment.strip()
-            
+
             # Remove markdown code fences
             if judgment_clean.startswith("```json"):
                 judgment_clean = judgment_clean[7:]
@@ -387,27 +387,27 @@ Based on the scoring rubric above, evaluate the response for {criterion_name} on
             if judgment_clean.endswith("```"):
                 judgment_clean = judgment_clean[:-3]
             judgment_clean = judgment_clean.strip()
-            
+
             # Try to extract JSON if it's embedded in text
             if "{" in judgment_clean and "}" in judgment_clean:
                 start_idx = judgment_clean.find("{")
                 end_idx = judgment_clean.rfind("}") + 1
                 judgment_clean = judgment_clean[start_idx:end_idx]
-            
+
             # Parse JSON
             result = json.loads(judgment_clean)
             score = float(result.get("score", 0.0))
             reasoning = result.get("reasoning", "")
-            
+
             # Validate score is in range [0, 1]
             score = max(0.0, min(1.0, score))
-            
+
             return score, reasoning
-            
+
         except json.JSONDecodeError as e:
             self.logger.error(f"JSON decode error: {e}")
             self.logger.error(f"Raw judgment: {judgment[:500]}")
-            
+
             # Try to extract score from text if JSON parsing fails
             import re
             score_match = re.search(r'score["\']?\s*[:=]\s*([0-9.]+)', judgment, re.IGNORECASE)
@@ -418,7 +418,7 @@ Based on the scoring rubric above, evaluate the response for {criterion_name} on
                     return extracted_score, f"Extracted score from text (JSON parse failed): {judgment[:200]}"
                 except ValueError:
                     pass
-            
+
             return 0.0, f"Error parsing judgment: Invalid JSON - {str(e)}"
         except Exception as e:
             self.logger.error(f"Error parsing judgment: {e}")
@@ -429,7 +429,7 @@ Based on the scoring rubric above, evaluate the response for {criterion_name} on
 async def example_basic_evaluation():
     """
     Example 1: Basic evaluation with LLMJudge
-    
+
     Usage:
         import asyncio
         from src.evaluation.judge import example_basic_evaluation
@@ -437,29 +437,29 @@ async def example_basic_evaluation():
     """
     import yaml
     from dotenv import load_dotenv
-    
+
     load_dotenv()
-    
+
     # Load config
     with open("config.yaml", 'r') as f:
         config = yaml.safe_load(f)
-    
+
     # Initialize judge
     judge = LLMJudge(config)
-    
+
     # Test case (similar to Lab 5)
     print("=" * 70)
     print("EXAMPLE 1: Basic Evaluation")
     print("=" * 70)
-    
+
     query = "What is the capital of France?"
     response = "Paris is the capital of France. It is known for the Eiffel Tower."
     ground_truth = "Paris"
-    
+
     print(f"\nQuery: {query}")
     print(f"Response: {response}")
     print(f"Ground Truth: {ground_truth}\n")
-    
+
     # Evaluate
     result = await judge.evaluate(
         query=query,
@@ -467,7 +467,7 @@ async def example_basic_evaluation():
         sources=[],
         ground_truth=ground_truth
     )
-    
+
     print(f"Overall Score: {result['overall_score']:.3f}\n")
     print("Criterion Scores:")
     for criterion, score_data in result['criterion_scores'].items():
@@ -479,7 +479,7 @@ async def example_basic_evaluation():
 async def example_compare_responses():
     """
     Example 2: Compare multiple responses
-    
+
     Usage:
         import asyncio
         from src.evaluation.judge import example_compare_responses
@@ -487,61 +487,61 @@ async def example_compare_responses():
     """
     import yaml
     from dotenv import load_dotenv
-    
+
     load_dotenv()
-    
+
     # Load config
     with open("config.yaml", 'r') as f:
         config = yaml.safe_load(f)
-    
+
     # Initialize judge
     judge = LLMJudge(config)
-    
+
     print("=" * 70)
     print("EXAMPLE 2: Compare Multiple Responses")
     print("=" * 70)
-    
+
     query = "What causes climate change?"
     ground_truth = "Climate change is primarily caused by increased greenhouse gas emissions from human activities, including burning fossil fuels, deforestation, and industrial processes."
-    
+
     responses = [
         "Climate change is primarily caused by greenhouse gas emissions from human activities.",
         "The weather changes because of natural cycles and the sun's activity.",
         "Climate change is a complex phenomenon involving multiple factors including CO2 emissions, deforestation, and industrial processes."
     ]
-    
+
     print(f"\nQuery: {query}\n")
     print(f"Ground Truth: {ground_truth}\n")
-    
+
     results = []
     for i, response in enumerate(responses, 1):
         print(f"\n{'='*70}")
         print(f"Response {i}:")
         print(f"{response}")
         print(f"{'='*70}")
-        
+
         result = await judge.evaluate(
             query=query,
             response=response,
             sources=[],
             ground_truth=ground_truth
         )
-        
+
         results.append(result)
-        
+
         print(f"\nOverall Score: {result['overall_score']:.3f}")
         print("\nCriterion Scores:")
         for criterion, score_data in result['criterion_scores'].items():
             print(f"  {criterion}: {score_data['score']:.3f}")
         print()
-    
+
     # Summary
     print("\n" + "=" * 70)
     print("SUMMARY")
     print("=" * 70)
     for i, result in enumerate(results, 1):
         print(f"Response {i}: {result['overall_score']:.3f}")
-    
+
     best_idx = max(range(len(results)), key=lambda i: results[i]['overall_score'])
     print(f"\nBest Response: Response {best_idx + 1}")
 
@@ -549,13 +549,13 @@ async def example_compare_responses():
 # For direct execution
 if __name__ == "__main__":
     import asyncio
-    
+
     print("Running LLMJudge Examples\n")
-    
+
     # Run example 1
     asyncio.run(example_basic_evaluation())
-    
+
     print("\n\n")
-    
+
     # Run example 2
     asyncio.run(example_compare_responses())

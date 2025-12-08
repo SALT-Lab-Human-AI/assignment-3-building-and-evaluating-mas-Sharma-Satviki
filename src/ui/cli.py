@@ -114,15 +114,15 @@ class CLI:
                 print("\n" + "=" * 70)
                 print("Processing your query...")
                 print("=" * 70)
-                
+
                 try:
                     # Process through orchestrator (synchronous call, not async)
                     result = self.orchestrator.process_query(query)
                     self.query_count += 1
-                    
+
                     # Display result
                     self._display_result(result)
-                    
+
                 except Exception as e:
                     print(f"\nError processing query: {e}")
                     logging.exception("Error processing query")
@@ -170,7 +170,7 @@ class CLI:
         print(f"  System: {self.config.get('system', {}).get('name', 'Unknown')}")
         print(f"  Topic: {self.config.get('system', {}).get('topic', 'Unknown')}")
         print(f"  Model: {self.config.get('models', {}).get('default', {}).get('name', 'Unknown')}")
-        
+
         # Safety statistics
         if self.orchestrator and self.orchestrator.safety_manager:
             safety_stats = self.orchestrator.safety_manager.get_safety_stats()
@@ -218,7 +218,7 @@ class CLI:
                 event_type = event.get("type", "unknown")
                 is_safe = event.get("safe", True)
                 violations = event.get("violations", [])
-                
+
                 if not is_safe:
                     print(f"  ⚠️  {event_type.upper()}: {len(violations)} violation(s)")
                     for v in violations:
@@ -258,23 +258,23 @@ class CLI:
             self._display_conversation_summary(result.get("conversation_history", []))
 
         print("=" * 70 + "\n")
-    
+
     def _extract_citations(self, result: Dict[str, Any]) -> list:
         """Extract citations/URLs from conversation history."""
         citations = []
         seen_urls = set()
-        
+
         for msg in result.get("conversation_history", []):
             content = msg.get("content", "")
-            
+
             # Find URLs in content
             import re
             urls = re.findall(r'https?://[^\s<>"{}|\\^`\[\]]+', content)
-            
+
             # Find citation patterns
             citation_patterns = re.findall(r'\[Source: ([^\]]+)\]', content)
             apa_patterns = re.findall(r'\(([A-Z][a-z]+(?:\s+et\s+al\.)?,\s+\d{4})\)', content)
-            
+
             for url in urls:
                 if url not in seen_urls:
                     seen_urls.add(url)
@@ -283,7 +283,7 @@ class CLI:
                         "content": url,
                         "display": url
                     })
-            
+
             for citation in citation_patterns:
                 if citation not in [c.get("content", "") if isinstance(c, dict) else c for c in citations]:
                     citations.append({
@@ -291,7 +291,7 @@ class CLI:
                         "content": citation,
                         "display": citation
                     })
-            
+
             for apa_cite in apa_patterns:
                 if apa_cite not in [c.get("content", "") if isinstance(c, dict) else c for c in citations]:
                     citations.append({
@@ -299,7 +299,7 @@ class CLI:
                         "content": apa_cite,
                         "display": f"({apa_cite})"
                     })
-        
+
         return citations[:15]  # Limit to top 15
 
     def _should_show_traces(self) -> bool:
@@ -311,19 +311,19 @@ class CLI:
         """Display a summary of the agent conversation."""
         if not conversation_history:
             return
-            
+
         print("\n" + "-" * 70)
         print("🔍 CONVERSATION SUMMARY")
         print("-" * 70)
-        
+
         for i, msg in enumerate(conversation_history, 1):
             agent = msg.get("source", "Unknown")
             content = msg.get("content", "")
-            
+
             # Truncate long content
             preview = content[:150] + "..." if len(content) > 150 else content
             preview = preview.replace("\n", " ")
-            
+
             print(f"\n{i}. {agent}:")
             print(f"   {preview}")
 

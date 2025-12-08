@@ -16,24 +16,24 @@ logger = logging.getLogger("safety.llm_helper")
 def create_llm_client(config: Dict[str, Any]) -> Optional[Any]:
     """
     Create LLM client for safety checks.
-    
+
     Args:
         config: Configuration dictionary
-        
+
     Returns:
         LLM client (Groq or OpenAI) or None if no API key
     """
     # Try to use the same provider as the default model
     model_config = config.get("models", {}).get("default", {})
     provider = model_config.get("provider", "groq")
-    
+
     if provider == "groq":
         api_key = os.getenv("GROQ_API_KEY")
         if api_key:
             return Groq(api_key=api_key)
         logger.warning("GROQ_API_KEY not found, safety checks will use fallback methods")
         return None
-    
+
     elif provider == "openai" or provider == "vllm":
         api_key = os.getenv("OPENAI_API_KEY")
         base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
@@ -41,7 +41,7 @@ def create_llm_client(config: Dict[str, Any]) -> Optional[Any]:
             return OpenAI(api_key=api_key, base_url=base_url)
         logger.warning("OPENAI_API_KEY not found, safety checks will use fallback methods")
         return None
-    
+
     return None
 
 
@@ -54,25 +54,25 @@ async def check_content_safety_llm(
 ) -> Dict[str, Any]:
     """
     Use LLM to check content safety.
-    
+
     Args:
         client: LLM client (Groq or OpenAI)
         content: Content to check
         check_type: "input" or "output"
         config: Configuration dictionary
         topic: System topic (default: HCI Research)
-        
+
     Returns:
         Dictionary with safety assessment
     """
     if not client:
         return {"safe": True, "reasoning": "LLM client not available, using fallback"}
-    
+
     model_config = config.get("models", {}).get("default", {})
     provider = model_config.get("provider", "groq")
     model_name = model_config.get("name", "llama-3.1-8b-instant")
     temperature = 0.3  # Lower temperature for safety checks
-    
+
     # Create safety check prompt
     if check_type == "input":
         prompt = f"""You are a safety checker for a research assistant system focused on {topic}.
@@ -110,7 +110,7 @@ Respond in JSON format:
     "reasoning": "brief explanation",
     "severity": "low|medium|high"
 }}"""
-    
+
     try:
         if provider == "groq":
             response = client.chat.completions.create(
@@ -134,7 +134,7 @@ Respond in JSON format:
                 max_tokens=512
             )
             result_text = response.choices[0].message.content
-        
+
         # Parse JSON response
         result_text = result_text.strip()
         if result_text.startswith("```json"):
@@ -144,10 +144,10 @@ Respond in JSON format:
         if result_text.endswith("```"):
             result_text = result_text[:-3]
         result_text = result_text.strip()
-        
+
         result = json.loads(result_text)
         return result
-        
+
     except json.JSONDecodeError as e:
         logger.error(f"Failed to parse LLM safety check response: {e}")
         logger.error(f"Raw response: {result_text[:200]}")
@@ -165,23 +165,23 @@ def check_relevance_llm(
 ) -> Dict[str, Any]:
     """
     Check if query is relevant to the system's topic using LLM.
-    
+
     Args:
         client: LLM client
         query: User query
         topic: System topic
         config: Configuration
-        
+
     Returns:
         Relevance assessment
     """
     if not client:
         return {"relevant": True, "reasoning": "LLM client not available"}
-    
+
     model_config = config.get("models", {}).get("default", {})
     provider = model_config.get("provider", "groq")
     model_name = model_config.get("name", "llama-3.1-8b-instant")
-    
+
     prompt = f"""Determine if the following query is relevant to {topic} research.
 
 Query: {query}
@@ -192,7 +192,7 @@ Respond in JSON format:
     "reasoning": "brief explanation",
     "confidence": 0.0-1.0
 }}"""
-    
+
     try:
         if provider == "groq":
             response = client.chat.completions.create(
@@ -216,7 +216,7 @@ Respond in JSON format:
                 max_tokens=256
             )
             result_text = response.choices[0].message.content
-        
+
         # Parse JSON
         result_text = result_text.strip()
         if result_text.startswith("```json"):
@@ -226,10 +226,9 @@ Respond in JSON format:
         if result_text.endswith("```"):
             result_text = result_text[:-3]
         result_text = result_text.strip()
-        
+
         return json.loads(result_text)
-        
+
     except Exception as e:
         logger.error(f"Error in relevance check: {e}")
         return {"relevant": True, "reasoning": "Error in relevance check"}
-

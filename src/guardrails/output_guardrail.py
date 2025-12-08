@@ -24,7 +24,7 @@ def _run_async_in_thread(coro):
 class OutputGuardrail:
     """
     Guardrail for checking output safety.
-    
+
     Uses LLM-based checks combined with regex patterns for comprehensive validation.
     """
 
@@ -37,10 +37,10 @@ class OutputGuardrail:
         """
         self.config = config
         self.logger = logging.getLogger("safety.output_guardrail")
-        
+
         # Initialize LLM client
         self.llm_client = create_llm_client(config)
-        
+
         # Get system topic from config (handle both nested and flat config structures)
         system_config = config.get("system", {})
         if isinstance(system_config, dict):
@@ -124,7 +124,7 @@ class OutputGuardrail:
                         if all(0 <= int(p) <= 255 for p in parts):
                             valid_matches.append(match)
                     matches = valid_matches
-                
+
                 if matches:
                     violations.append({
                         "validator": "pii",
@@ -141,13 +141,13 @@ class OutputGuardrail:
         Check for harmful or inappropriate content using LLM.
         """
         violations = []
-        
+
         if not self.llm_client:
             return violations
-        
+
         try:
             from src.guardrails.llm_safety_helper import check_content_safety_llm
-            
+
             loop = asyncio.get_event_loop()
             if loop.is_running():
                 import concurrent.futures
@@ -173,7 +173,7 @@ class OutputGuardrail:
                         self.topic
                     )
                 )
-            
+
             if not result.get("safe", True):
                 llm_violations = result.get("violations", [])
                 for v in llm_violations:
@@ -184,7 +184,7 @@ class OutputGuardrail:
                     })
         except Exception as e:
             self.logger.error(f"Error in harmful content check: {e}")
-        
+
         return violations
 
     def _check_factual_consistency(
@@ -196,21 +196,21 @@ class OutputGuardrail:
         Check if response is consistent with sources using LLM-based verification.
         """
         violations = []
-        
+
         if not self.llm_client or not sources:
             return violations
-        
+
         try:
             # Create summary of sources for LLM
             sources_summary = "\n".join([
                 f"- {s.get('title', 'Unknown')}: {s.get('snippet', s.get('abstract', ''))[:200]}"
                 for s in sources[:5]  # Limit to first 5 sources
             ])
-            
+
             model_config = self.config.get("models", {}).get("default", {})
             provider = model_config.get("provider", "openai")
             model_name = model_config.get("name", "gpt-4o-mini")
-            
+
             prompt = f"""Check if the following response is factually consistent with the provided sources.
 
 Response:
@@ -225,7 +225,7 @@ Respond in JSON format:
     "inconsistencies": ["description of inconsistency 1", "description 2"],
     "reasoning": "brief explanation"
 }}"""
-            
+
             from openai import OpenAI
             api_key = __import__("os").getenv("OPENAI_API_KEY")
             base_url = __import__("os").getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
@@ -243,7 +243,7 @@ Respond in JSON format:
                 result_text = llm_response.choices[0].message.content
             else:
                 return violations
-            
+
             # Parse JSON
             result_text = result_text.strip()
             if result_text.startswith("```json"):
@@ -253,9 +253,9 @@ Respond in JSON format:
             if result_text.endswith("```"):
                 result_text = result_text[:-3]
             result_text = result_text.strip()
-            
+
             result = __import__("json").loads(result_text)
-            
+
             if not result.get("consistent", True):
                 inconsistencies = result.get("inconsistencies", [])
                 for inc in inconsistencies:
@@ -266,7 +266,7 @@ Respond in JSON format:
                     })
         except Exception as e:
             self.logger.error(f"Error in factual consistency check: {e}")
-        
+
         return violations
 
     def _check_bias(self, text: str) -> List[Dict[str, Any]]:
@@ -274,15 +274,15 @@ Respond in JSON format:
         Check for biased language using LLM.
         """
         violations = []
-        
+
         if not self.llm_client:
             return violations
-        
+
         try:
             model_config = self.config.get("models", {}).get("default", {})
             provider = model_config.get("provider", "openai")
             model_name = model_config.get("name", "gpt-4o-mini")
-            
+
             prompt = f"""Analyze the following text for biased language, stereotypes, or discriminatory content.
 
 Text:
@@ -295,7 +295,7 @@ Respond in JSON format:
     "reasoning": "brief explanation",
     "severity": "low|medium|high"
 }}"""
-            
+
             from openai import OpenAI
             api_key = __import__("os").getenv("OPENAI_API_KEY")
             base_url = __import__("os").getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
@@ -313,7 +313,7 @@ Respond in JSON format:
                 result_text = llm_response.choices[0].message.content
             else:
                 return violations
-            
+
             # Parse JSON
             result_text = result_text.strip()
             if result_text.startswith("```json"):
@@ -323,9 +323,9 @@ Respond in JSON format:
             if result_text.endswith("```"):
                 result_text = result_text[:-3]
             result_text = result_text.strip()
-            
+
             result = __import__("json").loads(result_text)
-            
+
             if result.get("has_bias", False):
                 bias_types = result.get("bias_types", [])
                 violations.append({
@@ -336,7 +336,7 @@ Respond in JSON format:
                 })
         except Exception as e:
             self.logger.error(f"Error in bias check: {e}")
-        
+
         return violations
 
     def _sanitize(self, text: str, violations: List[Dict[str, Any]]) -> str:
@@ -351,7 +351,7 @@ Respond in JSON format:
                 matches = violation.get("matches", [])
                 for match in matches:
                     sanitized = sanitized.replace(match, "[REDACTED]")
-            
+
             # For harmful content or bias, we could redact sections
             # For now, we'll add a warning prefix
             elif violation.get("validator") in ["harmful_content", "bias"]:

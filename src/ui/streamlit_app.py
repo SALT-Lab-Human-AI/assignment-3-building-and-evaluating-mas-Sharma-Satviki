@@ -59,15 +59,15 @@ def initialize_session_state():
 def process_query(query: str, max_rounds: int = 10) -> Dict[str, Any]:
     """
     Process a query through the orchestrator.
-    
+
     Args:
         query: Research query to process
-        
+
     Returns:
         Result dictionary with response, citations, and metadata
     """
     orchestrator = st.session_state.orchestrator
-    
+
     if orchestrator is None:
         return {
             "query": query,
@@ -76,32 +76,32 @@ def process_query(query: str, max_rounds: int = 10) -> Dict[str, Any]:
             "citations": [],
             "metadata": {}
         }
-    
+
     try:
         # Process query through AutoGen orchestrator (synchronous)
         # Use reduced max_rounds for faster processing
         result = orchestrator.process_query(query, max_rounds=max_rounds)
-        
+
         # Check for errors
         if "error" in result:
             return result
-        
+
         # Extract citations from conversation history
         citations = extract_citations(result)
-        
+
         # Extract agent traces for display
         agent_traces = extract_agent_traces(result)
-        
+
         # Format metadata
         metadata = result.get("metadata", {})
         metadata["agent_traces"] = agent_traces
         metadata["citations"] = citations
         metadata["critique_score"] = calculate_quality_score(result)
-        
+
         # Extract safety events
         safety_events = result.get("safety_events", [])
         metadata["safety_events"] = safety_events
-        
+
         return {
             "query": query,
             "response": result.get("response", ""),
@@ -109,7 +109,7 @@ def process_query(query: str, max_rounds: int = 10) -> Dict[str, Any]:
             "metadata": metadata,
             "safety_events": safety_events
         }
-        
+
     except Exception as e:
         return {
             "query": query,
@@ -124,25 +124,25 @@ def extract_citations(result: Dict[str, Any]) -> list:
     """Extract citations from research result with better formatting."""
     citations = []
     seen_urls = set()
-    
+
     # Look through conversation history for citations
     for msg in result.get("conversation_history", []):
         content = msg.get("content", "")
-        
+
         # Ensure content is a string (handle cases where it might be a list or other type)
         if isinstance(content, list):
             content = " ".join(str(item) for item in content)
         elif not isinstance(content, str):
             content = str(content) if content else ""
-        
+
         # Find URLs in content
         import re
         urls = re.findall(r'https?://[^\s<>"{}|\\^`\[\]]+', content)
-        
+
         # Find citation patterns like [Source: Title] or (Author, Year)
         citation_patterns = re.findall(r'\[Source: ([^\]]+)\]', content)
         apa_patterns = re.findall(r'\(([A-Z][a-z]+(?:\s+et\s+al\.)?,\s+\d{4})\)', content)
-        
+
         for url in urls:
             if url not in seen_urls:
                 seen_urls.add(url)
@@ -151,7 +151,7 @@ def extract_citations(result: Dict[str, Any]) -> list:
                     "content": url,
                     "display": url
                 })
-        
+
         for citation in citation_patterns:
             if citation not in [c.get("content", "") for c in citations]:
                 citations.append({
@@ -159,7 +159,7 @@ def extract_citations(result: Dict[str, Any]) -> list:
                     "content": citation,
                     "display": citation
                 })
-        
+
         for apa_cite in apa_patterns:
             if apa_cite not in [c.get("content", "") for c in citations]:
                 citations.append({
@@ -167,55 +167,55 @@ def extract_citations(result: Dict[str, Any]) -> list:
                     "content": apa_cite,
                     "display": f"({apa_cite})"
                 })
-    
+
     return citations[:15]  # Limit to top 15
 
 
 def extract_agent_traces(result: Dict[str, Any]) -> Dict[str, list]:
     """Extract agent execution traces from conversation history."""
     traces = {}
-    
+
     for msg in result.get("conversation_history", []):
         agent = msg.get("source", "Unknown")
         content = msg.get("content", "")
-        
+
         # Ensure content is a string
         if isinstance(content, list):
             content = " ".join(str(item) for item in content)
         elif not isinstance(content, str):
             content = str(content) if content else ""
-        
+
         content = content[:200]  # First 200 chars
-        
+
         if agent not in traces:
             traces[agent] = []
-        
+
         traces[agent].append({
             "action_type": "message",
             "details": content
         })
-    
+
     return traces
 
 
 def calculate_quality_score(result: Dict[str, Any]) -> float:
     """Calculate a quality score based on various factors."""
     score = 5.0  # Base score
-    
+
     metadata = result.get("metadata", {})
-    
+
     # Add points for sources
     num_sources = metadata.get("num_sources", 0)
     score += min(num_sources * 0.5, 2.0)
-    
+
     # Add points for critique
     if metadata.get("critique"):
         score += 1.0
-    
+
     # Add points for conversation length (indicates thorough discussion)
     num_messages = metadata.get("num_messages", 0)
     score += min(num_messages * 0.1, 2.0)
-    
+
     return min(score, 10.0)  # Cap at 10
 
 
@@ -231,7 +231,7 @@ def display_response(result: Dict[str, Any]):
     # Check for safety blocking
     metadata = result.get("metadata", {})
     safety_events = result.get("safety_events", [])
-    
+
     if metadata.get("safety_blocked"):
         st.error("⚠️ **Response Blocked by Safety System**")
         violations = metadata.get("safety_violations", [])
@@ -242,13 +242,13 @@ def display_response(result: Dict[str, Any]):
     # Display response
     st.markdown("### Response")
     response = result.get("response", "")
-    
+
     # Ensure response is a string
     if isinstance(response, list):
         response = " ".join(str(item) for item in response)
     elif not isinstance(response, str):
         response = str(response) if response else ""
-    
+
     st.markdown(response)
 
     # Display citations with clickable links
@@ -260,7 +260,7 @@ def display_response(result: Dict[str, Any]):
                     cite_type = citation.get("type", "url")
                     cite_display = citation.get("display", citation.get("content", ""))
                     cite_content = citation.get("content", "")
-                    
+
                     if cite_type == "url":
                         st.markdown(f"**[{i}]** [{cite_display}]({cite_content})")
                     else:
@@ -290,7 +290,7 @@ def display_response(result: Dict[str, Any]):
                 event_type = event.get("type", "unknown")
                 is_safe = event.get("safe", True)
                 violations = event.get("violations", [])
-                
+
                 if not is_safe:
                     st.warning(f"**{event_type.upper()}** - {len(violations)} violation(s) detected")
                     for violation in violations:
@@ -305,7 +305,7 @@ def display_response(result: Dict[str, Any]):
         agent_traces = metadata.get("agent_traces", {})
         if agent_traces:
             display_agent_traces(agent_traces)
-    
+
     # Export buttons
     st.divider()
     col1, col2, col3 = st.columns(3)
@@ -329,13 +329,13 @@ def display_agent_traces(traces: Dict[str, Any]):
         # Show workflow visualization
         st.markdown("**Workflow:** Planner → Researcher → Writer → Critic")
         st.divider()
-        
+
         for agent_name, actions in traces.items():
             st.markdown(f"### {agent_name}")
             for i, action in enumerate(actions, 1):
                 action_type = action.get("action_type", "unknown")
                 details = action.get("details", "")
-                
+
                 with st.container():
                     st.markdown(f"**Step {i}:** {action_type}")
                     if isinstance(details, str) and len(details) > 0:
@@ -371,7 +371,7 @@ def display_sidebar():
 
         # Get actual statistics
         st.metric("Total Queries", len(st.session_state.history))
-        
+
         # Get safety stats from orchestrator
         safety_events_count = 0
         if st.session_state.orchestrator and st.session_state.orchestrator.safety_manager:
@@ -412,14 +412,14 @@ def export_conversation_json(result: Dict[str, Any]):
     """Export conversation as JSON."""
     output_dir = Path("outputs")
     output_dir.mkdir(exist_ok=True)
-    
+
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"conversation_{timestamp}.json"
     filepath = output_dir / filename
-    
+
     with open(filepath, 'w') as f:
         json.dump(result, f, indent=2)
-    
+
     st.success(f"✅ Exported to {filepath}")
     st.download_button(
         label="📥 Download JSON",
@@ -433,11 +433,11 @@ def export_response_markdown(result: Dict[str, Any]):
     """Export response as Markdown."""
     output_dir = Path("outputs")
     output_dir.mkdir(exist_ok=True)
-    
+
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"response_{timestamp}.md"
     filepath = output_dir / filename
-    
+
     markdown_content = f"""# Research Response
 
 **Query:** {result.get('query', 'Unknown')}
@@ -451,7 +451,7 @@ def export_response_markdown(result: Dict[str, Any]):
 ## Citations
 
 """
-    
+
     citations = result.get("citations", [])
     for i, citation in enumerate(citations, 1):
         if isinstance(citation, dict):
@@ -466,16 +466,16 @@ def export_response_markdown(result: Dict[str, Any]):
                 markdown_content += f"{i}. [{citation}]({citation})\n"
             else:
                 markdown_content += f"{i}. {citation}\n"
-    
+
     metadata = result.get("metadata", {})
     markdown_content += f"\n## Metadata\n\n"
     markdown_content += f"- Sources Used: {metadata.get('num_sources', 0)}\n"
     markdown_content += f"- Agent Messages: {metadata.get('num_messages', 0)}\n"
     markdown_content += f"- Quality Score: {metadata.get('critique_score', 0):.2f}\n"
-    
+
     with open(filepath, 'w') as f:
         f.write(markdown_content)
-    
+
     st.success(f"✅ Exported to {filepath}")
     st.download_button(
         label="📥 Download Markdown",
@@ -521,7 +521,7 @@ def main():
                 with progress_container:
                     status_text = st.empty()
                     status_text.info("🔄 Initializing agents...")
-                    
+
                 with st.spinner("Processing your query (this may take 1-3 minutes)..."):
                     try:
                         # Process query (synchronous) with reduced rounds for faster response
@@ -588,24 +588,24 @@ def main():
     if st.session_state.show_safety_log:
         st.divider()
         st.markdown("### 🛡️ Safety Event Log")
-        
+
         # Get safety events from orchestrator if available
         if st.session_state.orchestrator and st.session_state.orchestrator.safety_manager:
             safety_manager = st.session_state.orchestrator.safety_manager
             events = safety_manager.get_safety_events()
             stats = safety_manager.get_safety_stats()
-            
+
             if events:
                 st.metric("Total Safety Events", stats.get("total_events", 0))
                 st.metric("Violations", stats.get("violations", 0))
-                
+
                 with st.expander("View All Events", expanded=False):
                     for event in events[-10:]:  # Last 10 events
                         event_type = event.get("type", "unknown")
                         is_safe = event.get("safe", True)
                         timestamp = event.get("timestamp", "Unknown")
                         violations = event.get("violations", [])
-                        
+
                         status = "✅ Safe" if is_safe else "⚠️ Violation"
                         st.markdown(f"**{timestamp}** - {event_type.upper()} - {status}")
                         if violations:

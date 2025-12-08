@@ -6,13 +6,13 @@ Example usage:
     # Load config
     with open("config.yaml") as f:
         config = yaml.safe_load(f)
-    
+
     # Initialize evaluator with orchestrator
     evaluator = SystemEvaluator(config, orchestrator=my_orchestrator)
-    
+
     # Run evaluation
     report = await evaluator.evaluate_system("data/test_queries.json")
-    
+
     # Results are automatically saved to outputs/
 """
 
@@ -54,13 +54,13 @@ class SystemEvaluator:
         eval_config = config.get("evaluation", {})
         self.enabled = eval_config.get("enabled", True)
         self.max_test_queries = eval_config.get("num_test_queries", None)
-        
+
         # Initialize judge (passes config to load judge model settings and criteria)
         self.judge = LLMJudge(config)
 
         # Evaluation results
         self.results: List[Dict[str, Any]] = []
-        
+
         self.logger.info(f"SystemEvaluator initialized (enabled={self.enabled})")
 
     async def evaluate_system(
@@ -86,7 +86,7 @@ class SystemEvaluator:
         if not self.enabled:
             self.logger.warning("Evaluation is disabled in config.yaml")
             return {"error": "Evaluation is disabled in configuration"}
-        
+
         self.logger.info("Starting system evaluation")
 
         # Load test queries
@@ -139,7 +139,7 @@ class SystemEvaluator:
                 # Use reduced max_rounds (2) for efficient 6-query evaluation
                 # The orchestrator handles async internally
                 response_data = self.orchestrator.process_query(query, max_rounds=2)
-                
+
                 # Extract sources from conversation history if available
                 sources = []
                 conversation_history = response_data.get("conversation_history", [])
@@ -154,13 +154,13 @@ class SystemEvaluator:
                     import re
                     urls = re.findall(r'https?://[^\s<>"{}|\\^`\[\]]+', content)
                     sources.extend([{"url": url} for url in urls])
-                
+
                 # Add sources to metadata
                 if sources:
                     metadata = response_data.get("metadata", {})
                     metadata["sources"] = sources[:20]  # Limit to 20 sources
                     response_data["metadata"] = metadata
-                
+
                 # Check for errors in response
                 response_text = response_data.get("response", "")
                 has_error = (
@@ -171,7 +171,7 @@ class SystemEvaluator:
                     "timed out" in response_text.lower() or
                     "bound to a different event loop" in response_text.lower()
                 )
-                
+
                 if has_error:
                     error_msg = response_data.get("error", response_text)
                     self.logger.warning(f"Query returned error: {error_msg[:100]}")
@@ -183,7 +183,7 @@ class SystemEvaluator:
                         "metadata": response_data.get("metadata", {}),
                         "ground_truth": ground_truth
                     }
-                
+
             except Exception as e:
                 self.logger.error(f"Error processing query through orchestrator: {e}", exc_info=True)
                 response_data = {
@@ -232,7 +232,7 @@ class SystemEvaluator:
             cleaned_metadata["error"] = metadata.get("error")
         if "error_type" in metadata:
             cleaned_metadata["error_type"] = metadata.get("error_type")
-        
+
         return {
             "query": query,
             "response": response_data.get("response", ""),
@@ -324,7 +324,7 @@ class SystemEvaluator:
                 # Handle both dict and float scores
                 score_value = score_data.get("score", 0.0) if isinstance(score_data, dict) else score_data
                 criterion_scores[criterion].append(score_value)
-            
+
             # Group by category if available
             category = result.get("category", "unknown")
             if category not in category_scores:
@@ -337,7 +337,7 @@ class SystemEvaluator:
         avg_criterion_scores = {}
         for criterion, scores in criterion_scores.items():
             avg_criterion_scores[criterion] = sum(scores) / len(scores) if scores else 0.0
-        
+
         # Calculate category averages
         avg_category_scores = {}
         for category, scores in category_scores.items():
@@ -349,7 +349,7 @@ class SystemEvaluator:
 
         # Error analysis
         error_analysis = self._analyze_errors(failed)
-        
+
         # Performance analysis
         performance_analysis = self._analyze_performance(successful)
 
@@ -382,19 +382,19 @@ class SystemEvaluator:
         }
 
         return report
-    
+
     def _analyze_errors(self, failed: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Analyze error patterns in failed queries."""
         if not failed:
             return {"total_errors": 0, "error_types": {}}
-        
+
         error_types = {}
         error_messages = []
-        
+
         for result in failed:
             error = result.get("error", "Unknown error")
             error_messages.append(error)
-            
+
             # Categorize errors
             error_category = "unknown"
             if "timeout" in str(error).lower():
@@ -407,20 +407,20 @@ class SystemEvaluator:
                 error_category = "validation_error"
             else:
                 error_category = "other"
-            
+
             error_types[error_category] = error_types.get(error_category, 0) + 1
-        
+
         return {
             "total_errors": len(failed),
             "error_types": error_types,
             "sample_errors": error_messages[:5]  # First 5 errors
         }
-    
+
     def _analyze_performance(self, successful: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Analyze performance patterns."""
         if not successful:
             return {}
-        
+
         # Score distribution
         scores = [r.get("evaluation", {}).get("overall_score", 0.0) for r in successful]
         score_ranges = {
@@ -429,7 +429,7 @@ class SystemEvaluator:
             "fair (0.5-0.69)": sum(1 for s in scores if 0.5 <= s < 0.7),
             "poor (0.0-0.49)": sum(1 for s in scores if 0.0 <= s < 0.5)
         }
-        
+
         # Weakest criterion (lowest average score)
         criterion_averages = {}
         for result in successful:
@@ -439,15 +439,15 @@ class SystemEvaluator:
                     criterion_averages[criterion] = []
                 score_value = score_data.get("score", 0.0) if isinstance(score_data, dict) else score_data
                 criterion_averages[criterion].append(score_value)
-        
+
         avg_by_criterion = {
-            criterion: sum(scores) / len(scores) 
+            criterion: sum(scores) / len(scores)
             for criterion, scores in criterion_averages.items()
             if scores
         }
-        
+
         weakest_criterion = min(avg_by_criterion.items(), key=lambda x: x[1]) if avg_by_criterion else None
-        
+
         return {
             "score_distribution": score_ranges,
             "weakest_criterion": {
@@ -511,29 +511,29 @@ class SystemEvaluator:
             f.write("Scores by Criterion:\n")
             for criterion, score in scores.get("by_criterion", {}).items():
                 f.write(f"  {criterion}: {score:.3f}\n")
-            
+
             f.write("\nScores by Category:\n")
             for category, score in scores.get("by_category", {}).items():
                 f.write(f"  {category}: {score:.3f}\n")
-            
+
             f.write("\n" + "=" * 70 + "\n")
             f.write("BEST AND WORST PERFORMING QUERIES\n")
             f.write("=" * 70 + "\n\n")
-            
+
             best = report.get("best_result")
             if best:
                 f.write(f"BEST:\n")
                 f.write(f"  Query: {best.get('query', '')}\n")
                 f.write(f"  Score: {best.get('score', 0.0):.3f}\n")
                 f.write(f"  Category: {best.get('category', 'unknown')}\n\n")
-            
+
             worst = report.get("worst_result")
             if worst:
                 f.write(f"WORST:\n")
                 f.write(f"  Query: {worst.get('query', '')}\n")
                 f.write(f"  Score: {worst.get('score', 0.0):.3f}\n")
                 f.write(f"  Category: {worst.get('category', 'unknown')}\n\n")
-            
+
             # Error analysis
             error_analysis = report.get("error_analysis", {})
             if error_analysis.get("total_errors", 0) > 0:
@@ -548,7 +548,7 @@ class SystemEvaluator:
                 for error in error_analysis.get("sample_errors", [])[:3]:
                     f.write(f"  - {error[:100]}\n")
                 f.write("\n")
-            
+
             # Performance analysis
             perf_analysis = report.get("performance_analysis", {})
             if perf_analysis:
@@ -558,49 +558,49 @@ class SystemEvaluator:
                 f.write("Score Distribution:\n")
                 for range_name, count in perf_analysis.get("score_distribution", {}).items():
                     f.write(f"  {range_name}: {count}\n")
-                
+
                 weakest = perf_analysis.get("weakest_criterion")
                 if weakest:
                     f.write(f"\nWeakest Criterion: {weakest.get('name')} (avg: {weakest.get('average_score', 0.0):.3f})\n")
                 f.write("\n")
 
         self.logger.info(f"Summary saved to {summary_file}")
-        
+
         # Save a markdown version for easier reading
         markdown_file = output_dir / f"evaluation_report_{timestamp}.md"
         self._save_markdown_report(report, markdown_file)
         self.logger.info(f"Markdown report saved to {markdown_file}")
-    
+
     def _save_markdown_report(self, report: Dict[str, Any], filepath: Path):
         """Save evaluation report in Markdown format."""
         with open(filepath, 'w') as f:
             f.write("# Evaluation Report\n\n")
             f.write(f"**Date:** {report.get('timestamp', 'Unknown')}\n\n")
-            
+
             summary = report.get("summary", {})
             f.write("## Overview\n\n")
             f.write(f"- **Total Queries:** {summary.get('total_queries', 0)}\n")
             f.write(f"- **Successful:** {summary.get('successful', 0)}\n")
             f.write(f"- **Failed:** {summary.get('failed', 0)}\n")
             f.write(f"- **Success Rate:** {summary.get('success_rate', 0.0):.2%}\n\n")
-            
+
             scores = report.get("scores", {})
             f.write("## Scores\n\n")
             f.write(f"**Overall Average:** {scores.get('overall_average', 0.0):.3f}\n\n")
-            
+
             f.write("### By Criterion\n\n")
             for criterion, score in scores.get("by_criterion", {}).items():
                 f.write(f"- **{criterion}:** {score:.3f}\n")
-            
+
             f.write("\n### By Category\n\n")
             for category, score in scores.get("by_category", {}).items():
                 f.write(f"- **{category}:** {score:.3f}\n")
-            
+
             f.write("\n## Best and Worst Queries\n\n")
             best = report.get("best_result")
             if best:
                 f.write(f"### Best\n- Query: {best.get('query', '')}\n- Score: {best.get('score', 0.0):.3f}\n\n")
-            
+
             worst = report.get("worst_result")
             if worst:
                 f.write(f"### Worst\n- Query: {worst.get('query', '')}\n- Score: {worst.get('score', 0.0):.3f}\n\n")
@@ -613,24 +613,24 @@ class SystemEvaluator:
         if not self.results:
             self.logger.warning("No results to export")
             return
-        
+
         # Create output directory
         output_dir = Path(output_path).parent
         output_dir.mkdir(exist_ok=True)
-        
+
         # Format data for report
         report_data = {
             "evaluation_date": datetime.now().isoformat(),
             "total_queries": len(self.results),
             "results": self.results
         }
-        
+
         # Clean the report data to remove non-serializable objects
         cleaned_data = self._clean_for_json(report_data)
 
         with open(output_path, 'w', encoding='utf-8') as f:
             json.dump(cleaned_data, f, indent=2, ensure_ascii=False)
-        
+
         self.logger.info(f"Report data exported to {output_path}")
 
 
@@ -638,7 +638,7 @@ async def example_simple_evaluation():
     """
     Example 1: Simple evaluation without orchestrator
     Tests the evaluation pipeline with mock responses
-    
+
     Usage:
         import asyncio
         from src.evaluation.evaluator import example_simple_evaluation
@@ -646,17 +646,17 @@ async def example_simple_evaluation():
     """
     import yaml
     from dotenv import load_dotenv
-    
+
     load_dotenv()
-    
+
     print("=" * 70)
     print("EXAMPLE 1: Simple Evaluation (No Orchestrator)")
     print("=" * 70)
-    
+
     # Load config
     with open("config.yaml", 'r') as f:
         config = yaml.safe_load(f)
-    
+
     # Create test queries in memory (no file needed)
     test_queries = [
         {
@@ -668,22 +668,22 @@ async def example_simple_evaluation():
             "ground_truth": "Exercise improves physical health, mental wellbeing, and reduces disease risk."
         }
     ]
-    
+
     # Save test queries temporarily
     test_file = Path("data/test_queries_example.json")
     test_file.parent.mkdir(exist_ok=True)
     with open(test_file, 'w') as f:
         json.dump(test_queries, f, indent=2)
-    
+
     # Initialize evaluator without orchestrator
     evaluator = SystemEvaluator(config, orchestrator=None)
-    
+
     print("\nRunning evaluation on test queries...")
     print("Note: Using placeholder responses since no orchestrator is connected\n")
-    
+
     # Run evaluation
     report = await evaluator.evaluate_system(str(test_file))
-    
+
     # Display results
     print("\n" + "=" * 70)
     print("EVALUATION RESULTS")
@@ -692,13 +692,13 @@ async def example_simple_evaluation():
     print(f"Successful: {report['summary']['successful']}")
     print(f"Failed: {report['summary']['failed']}")
     print(f"Overall Average Score: {report['scores']['overall_average']:.3f}\n")
-    
+
     print("Scores by Criterion:")
     for criterion, score in report['scores']['by_criterion'].items():
         print(f"  {criterion}: {score:.3f}")
-    
+
     print(f"\nDetailed results saved to outputs/")
-    
+
     # Clean up
     test_file.unlink()
 
@@ -707,7 +707,7 @@ async def example_with_orchestrator():
     """
     Example 2: Evaluation with orchestrator
     Shows how to connect the evaluator to your multi-agent system
-    
+
     Usage:
         import asyncio
         from src.evaluation.evaluator import example_with_orchestrator
@@ -715,17 +715,17 @@ async def example_with_orchestrator():
     """
     import yaml
     from dotenv import load_dotenv
-    
+
     load_dotenv()
-    
+
     print("=" * 70)
     print("EXAMPLE 2: Evaluation with Orchestrator")
     print("=" * 70)
-    
+
     # Load config
     with open("config.yaml", 'r') as f:
         config = yaml.safe_load(f)
-    
+
     # Initialize orchestrator
     # Uses AutoGenOrchestrator for multi-agent coordination
     try:
@@ -736,7 +736,7 @@ async def example_with_orchestrator():
         print(f"\nCould not initialize orchestrator: {e}")
         print("This example requires a working orchestrator implementation")
         return
-    
+
     # Create test queries
     test_queries = [
         {
@@ -744,32 +744,32 @@ async def example_with_orchestrator():
             "ground_truth": "Key principles include perceivability, operability, understandability, and robustness."
         }
     ]
-    
+
     test_file = Path("data/test_queries_orchestrator.json")
     test_file.parent.mkdir(exist_ok=True)
     with open(test_file, 'w') as f:
         json.dump(test_queries, f, indent=2)
-    
+
     # Initialize evaluator with orchestrator
     evaluator = SystemEvaluator(config, orchestrator=orchestrator)
-    
+
     print("\nRunning evaluation with real orchestrator...")
     print("This will actually query your multi-agent system\n")
-    
+
     # Run evaluation
     report = await evaluator.evaluate_system(str(test_file))
-    
+
     # Display results
     print("\n" + "=" * 70)
     print("EVALUATION RESULTS")
     print("=" * 70)
     print(f"\nTotal Queries: {report['summary']['total_queries']}")
     print(f"Overall Average Score: {report['scores']['overall_average']:.3f}\n")
-    
+
     print("Scores by Criterion:")
     for criterion, score in report['scores']['by_criterion'].items():
         print(f"  {criterion}: {score:.3f}")
-    
+
     # Show detailed result for first query
     if report['detailed_results']:
         result = report['detailed_results'][0]
@@ -779,9 +779,9 @@ async def example_with_orchestrator():
         print(f"\nQuery: {result['query']}")
         print(f"\nResponse: {result['response'][:200]}...")
         print(f"\nOverall Score: {result['evaluation']['overall_score']:.3f}")
-    
+
     print(f"\nFull results saved to outputs/")
-    
+
     # Clean up
     test_file.unlink()
 
@@ -789,13 +789,13 @@ async def example_with_orchestrator():
 # For direct execution
 if __name__ == "__main__":
     import asyncio
-    
+
     print("Running SystemEvaluator Examples\n")
-    
+
     # Run example 1
     asyncio.run(example_simple_evaluation())
-    
+
     print("\n\n")
-    
+
     # Run example 2 (if orchestrator is available)
     asyncio.run(example_with_orchestrator())

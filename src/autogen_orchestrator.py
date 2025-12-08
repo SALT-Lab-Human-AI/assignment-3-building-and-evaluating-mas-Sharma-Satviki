@@ -24,7 +24,7 @@ from src.guardrails.safety_manager import SafetyManager
 def _run_async_in_thread(coro):
     """
     Helper to run async code in a new event loop in a thread.
-    
+
     This creates a completely isolated event loop to avoid binding conflicts
     with AutoGen's internal async queues and tasks.
     """
@@ -50,7 +50,7 @@ def _run_async_in_thread(coro):
 class AutoGenOrchestrator:
     """
     Orchestrates multi-agent research using AutoGen's RoundRobinGroupChat.
-    
+
     This orchestrator manages a team of specialized agents that work together
     to answer research queries. It uses AutoGen's built-in conversation
     management and tool execution capabilities.
@@ -65,28 +65,28 @@ class AutoGenOrchestrator:
         """
         self.config = config
         self.logger = logging.getLogger("autogen_orchestrator")
-        
+
         # Initialize safety manager
         safety_config = config.get("safety", {})
         self.safety_manager = SafetyManager(safety_config) if safety_config.get("enabled", True) else None
         if self.safety_manager:
             self.logger.info("Safety manager initialized")
-        
+
         # Don't create team in __init__ - create it lazily in async context
         # This prevents event loop binding issues when running in threads
         self._team = None
-        
+
         # Workflow trace for debugging and UI display
         self.workflow_trace: List[Dict[str, Any]] = []
-    
+
     async def _get_team_async(self):
         """
         Get or create the research team in the current async context.
         Creates the team lazily to avoid event loop binding issues.
-        
+
         This ensures the team is always created in the same event loop
         where it will be used, preventing "bound to different event loop" errors.
-        
+
         Returns:
             RoundRobinGroupChat team instance
         """
@@ -124,14 +124,14 @@ class AutoGenOrchestrator:
             - safety_events: Safety events if any
         """
         self.logger.info(f"Processing query: {query}")
-        
+
         # Check input safety
         if self.safety_manager:
             input_safety = self.safety_manager.check_input_safety(query)
             if not input_safety.get("safe", True):
                 violations = input_safety.get("violations", [])
                 self.logger.warning(f"Input safety check failed: {violations}")
-                
+
                 # Return refusal message
                 return {
                     "query": query,
@@ -152,7 +152,7 @@ class AutoGenOrchestrator:
                         "violations": violations
                     }]
                 }
-        
+
         try:
             # Run the async query processing
             # Always use asyncio.run() to create a fresh event loop
@@ -160,7 +160,7 @@ class AutoGenOrchestrator:
             try:
                 loop = asyncio.get_event_loop()
                 if loop.is_running():
-                    # If we're already in an async context (e.g., Streamlit), 
+                    # If we're already in an async context (e.g., Streamlit),
                     # we need to run in a separate thread with a new event loop
                     import concurrent.futures
                     with concurrent.futures.ThreadPoolExecutor() as pool:
@@ -172,32 +172,32 @@ class AutoGenOrchestrator:
             except RuntimeError:
                 # No event loop exists, create a new one with asyncio.run()
                 result = asyncio.run(self._process_query_async(query, max_rounds))
-            
+
             # Check output safety
             if self.safety_manager and "response" in result:
                 output_safety = self.safety_manager.check_output_safety(
                     result.get("response", ""),
                     result.get("metadata", {}).get("sources", [])
                 )
-                
+
                 if not output_safety.get("safe", True):
                     violations = output_safety.get("violations", [])
                     self.logger.warning(f"Output safety check failed: {violations}")
-                    
+
                     # Update response based on safety action
                     result["response"] = output_safety.get("response", result.get("response", ""))
                     result["metadata"]["safety_blocked"] = True
                     result["metadata"]["safety_violations"] = violations
-                
+
                 # Add safety events to metadata
                 safety_events = self.safety_manager.get_safety_events()
                 if safety_events:
                     result["safety_events"] = safety_events[-5:]  # Last 5 events
                     result["metadata"]["safety_events"] = safety_events[-5:]
-            
+
             self.logger.info("Query processing complete")
             return result
-            
+
         except ValueError as e:
             # API connection or configuration errors
             error_msg = str(e)
@@ -220,15 +220,15 @@ class AutoGenOrchestrator:
                 "conversation_history": [],
                 "metadata": {"error": True, "error_type": "orchestrator_error"}
             }
-    
+
     async def _process_query_async(self, query: str, max_rounds: int = 10) -> Dict[str, Any]:
         """
         Async implementation of query processing.
-        
+
         Args:
             query: The research question to answer
             max_rounds: Maximum number of conversation rounds (default 10 for faster processing)
-            
+
         Returns:
             Dictionary containing results
         """
@@ -240,12 +240,12 @@ Please work together to answer this query comprehensively:
 2. Researcher: Gather evidence from web and academic sources
 3. Writer: Synthesize findings into a well-cited response
 4. Critic: Evaluate the quality and provide feedback"""
-        
+
         # Get or create team in this async context (lazy creation)
         # This ensures the team is bound to the current event loop
         # We create it fresh each time to avoid event loop binding issues
         team = await self._get_team_async()
-        
+
         # Run the team with timeout
         try:
             # Add timeout to prevent infinite execution
@@ -265,7 +265,7 @@ Please work together to answer this query comprehensively:
             if "api" in str(e).lower() or "connection" in str(e).lower() or "key" in str(e).lower():
                 raise ValueError(f"API connection error: {e}") from e
             raise RuntimeError(error_msg) from e
-        
+
         # Extract conversation history
         messages = []
         # result.messages might be a list or an async iterator
@@ -285,7 +285,7 @@ Please work together to answer this query comprehensively:
                     "content": message.content if hasattr(message, 'content') else str(message),
                 }
                 messages.append(msg_dict)
-        
+
         # Limit conversation history to prevent context length issues
         # Keep only the most recent messages (last 20 messages max)
         max_messages = 20  # Reduced from 50 for efficient 6-query evaluation
@@ -296,7 +296,7 @@ Please work together to answer this query comprehensively:
             )
             # Keep first message (query) and last N messages
             messages = [messages[0]] + messages[-max_messages+1:]
-        
+
         # Extract final response
         final_response = ""
         if messages:
@@ -305,11 +305,11 @@ Please work together to answer this query comprehensively:
                 if msg.get("source") in ["Writer", "Critic"]:
                     final_response = msg.get("content", "")
                     break
-        
+
         # If no response found, use the last message
         if not final_response and messages:
             final_response = messages[-1].get("content", "")
-        
+
         return self._extract_results(query, messages, final_response)
 
     def _extract_results(self, query: str, messages: List[Dict[str, Any]], final_response: str = "") -> Dict[str, Any]:
@@ -328,30 +328,30 @@ Please work together to answer this query comprehensively:
         research_findings = []
         plan = ""
         critique = ""
-        
+
         for msg in messages:
             source = msg.get("source", "")
             content = msg.get("content", "")
-            
+
             if source == "Planner" and not plan:
                 plan = content
-            
+
             elif source == "Researcher":
                 research_findings.append(content)
-            
+
             elif source == "Critic":
                 critique = content
-        
+
         # Count sources mentioned in research
         num_sources = 0
         for finding in research_findings:
             # Rough count of sources based on numbered results
             num_sources += finding.count("\n1.") + finding.count("\n2.") + finding.count("\n3.")
-        
+
         # Clean up final response
         if final_response:
             final_response = final_response.replace("TERMINATE", "").strip()
-        
+
         return {
             "query": query,
             "response": final_response,
@@ -423,34 +423,34 @@ AutoGen Research Workflow:
 def demonstrate_usage():
     """
     Demonstrate how to use the AutoGen orchestrator.
-    
+
     This function shows a simple example of using the orchestrator.
     """
     import yaml
     from dotenv import load_dotenv
-    
+
     # Load environment variables
     load_dotenv()
-    
+
     # Load configuration
     with open("config.yaml", "r") as f:
         config = yaml.safe_load(f)
-    
+
     # Create orchestrator
     orchestrator = AutoGenOrchestrator(config)
-    
+
     # Print workflow visualization
     print(orchestrator.visualize_workflow())
-    
+
     # Example query
     query = "What are the latest trends in human-computer interaction research?"
-    
+
     print(f"\nProcessing query: {query}\n")
     print("=" * 70)
-    
+
     # Process query
     result = orchestrator.process_query(query)
-    
+
     # Display results
     print("\n" + "=" * 70)
     print("RESULTS")
@@ -469,6 +469,5 @@ if __name__ == "__main__":
         level=logging.INFO,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
-    
-    demonstrate_usage()
 
+    demonstrate_usage()

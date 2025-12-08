@@ -27,7 +27,7 @@ def _run_async_in_thread(coro):
 class SafetyManager:
     """
     Manages safety guardrails for the multi-agent system.
-    
+
     Uses custom LLM-based safety checks with input and output guardrails.
     """
 
@@ -59,11 +59,11 @@ class SafetyManager:
 
         # Initialize LLM client for safety checks
         self.llm_client = create_llm_client(config)
-        
+
         # Initialize input and output guardrails
         self.input_guardrail = InputGuardrail(config)
         self.output_guardrail = OutputGuardrail(config)
-        
+
         # Get system topic from config (handle both nested and flat config structures)
         system_config = config.get("system", {})
         if isinstance(system_config, dict):
@@ -87,7 +87,7 @@ class SafetyManager:
 
         # Use input guardrail for validation
         validation_result = self.input_guardrail.validate(query)
-        
+
         if not validation_result.get("valid", True):
             violations = validation_result.get("violations", [])
             is_safe = False
@@ -105,7 +105,7 @@ class SafetyManager:
                             llm_result = future.result()
                     else:
                         llm_result = loop.run_until_complete(self._check_input_llm(query))
-                    
+
                     if not llm_result.get("safe", True):
                         violations = [{
                             "category": llm_result.get("category", "unknown"),
@@ -133,7 +133,7 @@ class SafetyManager:
             "violations": violations,
             "sanitized_query": validation_result.get("sanitized_input", query) if not is_safe else query
         }
-    
+
     async def _check_input_llm(self, query: str) -> Dict[str, Any]:
         """Async helper for LLM input safety check."""
         from src.guardrails.llm_safety_helper import check_content_safety_llm
@@ -161,9 +161,9 @@ class SafetyManager:
 
         # Use output guardrail for validation
         validation_result = self.output_guardrail.validate(response, sources)
-        
+
         violations = validation_result.get("violations", [])
-        
+
         # Additional LLM-based safety check if client available
         if self.llm_client:
             try:
@@ -176,7 +176,7 @@ class SafetyManager:
                         llm_result = future.result()
                 else:
                     llm_result = loop.run_until_complete(self._check_output_llm(response))
-                
+
                 if not llm_result.get("safe", True):
                     llm_violations = llm_result.get("violations", [])
                     for v in llm_violations:
@@ -213,7 +213,7 @@ class SafetyManager:
                 )
 
         return result
-    
+
     async def _check_output_llm(self, response: str) -> Dict[str, Any]:
         """Async helper for LLM output safety check."""
         from src.guardrails.llm_safety_helper import check_content_safety_llm

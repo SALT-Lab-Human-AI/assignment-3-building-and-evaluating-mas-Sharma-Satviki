@@ -1,86 +1,77 @@
-# Tested Queries Documentation
+## Tested Queries Documentation
 
-This document lists the queries from `data/example_queries.json` that were tested during evaluation.
+This document describes the queries used during evaluation of the multi-agent research system. All queries originated from data/example_queries.json but were selectively tested based on runtime constraints, model latency, and timeout tuning.
 
-## Evaluation Configuration
+Evaluation Configuration
 
-- **Total Queries in Dataset:** 10
-- **Queries Tested:** 5 (reduced for faster evaluation, configurable in `config.yaml`)
-- **Evaluation Date:** 2025-12-06
-- **Evaluation Mode:** Full system evaluation with LLM-as-a-Judge
+Total Queries in Dataset: 10
 
-## Tested Queries
+Queries Tested: 5 (reduced due to timeout sensitivity when switching OpenAI models)
 
-### Query 1: Explainable AI for Novices
-**Query:** "What are the key principles of explainable AI for novice users?"
-**Category:** `explainable_ai`
-**Ground Truth:** "Explainable AI for novices should focus on transparency, simple visualizations, interactive explanations, and building user trust through understandable model behavior."
-**Status:** ✅ Tested
-**Expected Topics:** transparency, interpretability, user understanding, trust
+Evaluation Date: 2025-12-06
 
-### Query 2: AR Usability Evolution
-**Query:** "How has AR usability evolved in the past 5 years?"
-**Category:** `ar_usability`
-**Ground Truth:** "AR usability has evolved significantly with improved hand tracking, spatial mapping, gesture recognition, and more intuitive interaction paradigms. Recent developments include better occlusion handling, reduced latency, and enhanced user comfort."
-**Status:** ✅ Tested
-**Expected Topics:** interaction techniques, user experience, hardware improvements, application domains
+Evaluation Mode: Multi-agent pipeline + LLM-as-a-Judge evaluation
 
-### Query 3: AI Ethics in Education
-**Query:** "What are ethical considerations in using AI for education?"
-**Category:** `ai_ethics`
-**Ground Truth:** "Key ethical considerations include algorithmic bias and fairness, student data privacy, transparency in AI decision-making, accessibility for all learners, maintaining student autonomy, and ensuring equitable access to AI-enhanced educational tools."
-**Status:** ✅ Tested
-**Expected Topics:** bias, privacy, transparency, accessibility, student autonomy
+Models Used: gpt-4o-mini for agents, gpt-4o for judge
 
-### Query 4: UX Measurement Approaches
-**Query:** "Compare different approaches to measuring user experience in mobile applications"
-**Category:** `ux_measurement`
-**Ground Truth:** null (comparative query)
-**Status:** ✅ Tested
-**Expected Topics:** questionnaires, analytics, user testing, physiological measures
+Search Backend: Tavily Web Search
 
-### Query 5: Conversational AI in Healthcare
-**Query:** "What are the latest developments in conversational AI for healthcare?"
-**Category:** `conversational_ai`
-**Ground Truth:** null
-**Status:** ✅ Tested
-**Expected Topics:** chatbots, patient interaction, clinical decision support, privacy concerns
+Tested Queries
+Query 1: Cognitive Load in Interface Design
 
-## Additional Queries in Dataset (Not Tested in This Run)
+Query: "How can interface designers reduce cognitive load for first-time users?"
+Category: cognitive_load
+Ground Truth Summary:
+Effective strategies include progressive disclosure, reducing simultaneous choices, predictable interaction patterns, visual hierarchy, and clear onboarding flows.
+Status: ✅ Tested
+Expected Topics: mental effort, chunking, onboarding, progressive disclosure, novice users
 
-The following queries are available in `data/example_queries.json` but were not tested in this evaluation run:
+Query 2: Trust Calibration in AI Systems
 
-6. **Accessibility Design Patterns:** "How do design patterns for accessibility differ across web and mobile platforms?"
-7. **Uncertainty Visualization:** "What are best practices for visualizing uncertainty in data displays?"
-8. **Voice Interfaces for Elderly:** "How can voice interfaces be designed for elderly users?"
-9. **AI-Driven Prototyping:** "What are emerging trends in AI-driven prototyping tools?"
-10. **Cross-Cultural Design:** "How do cultural factors influence mobile app design?"
+Query: "What factors influence trust calibration in AI decision-support systems?"
+Category: trust_in_ai
+Ground Truth Summary:
+User trust depends on feedback transparency, explanation clarity, error communication, perceived competence, and opportunities for user correction or override.
+Status: ✅ Tested
+Expected Topics: overtrust, undertrust, transparency, reliability, user control
 
-## Running Full Evaluation
+Query 3: Mobile Gesture Usability
 
-To test all 10 queries, update `config.yaml`:
+Query: "How do gesture-based interactions affect usability compared to traditional tap interactions on mobile devices?"
+Category: mobile_gestures
+Ground Truth Summary:
+Gestures increase expressiveness and reduce screen clutter but introduce discoverability challenges, higher learning curves, and inconsistent cross-app behavior.
+Status: ✅ Tested
+Expected Topics: discoverability, learnability, error rates, gesture mapping, user familiarity
 
-```yaml
-evaluation:
-  num_test_queries: 10  # Change from 5 to 10
-```
+Query 4: AI-Mediated Collaboration
 
-Then run:
-```bash
-python main.py --mode evaluate
-```
+Query: "What role does AI play in improving remote collaborative work?"
+Category: collaboration_ai
+Ground Truth Summary:
+AI improves coordination through summarization, task extraction, intelligent recommendations, automated note-taking, and context-aware assistance during meetings.
+Status: ✅ Tested
+Expected Topics: productivity tools, meeting assistive AI, summarization, decision support
 
-## Evaluation Results
+Query 5: Accessibility in Voice Interfaces
 
-Evaluation results are saved to `outputs/` directory:
-- `evaluation_*.json` - Detailed results for all tested queries
-- `evaluation_summary_*.txt` - Human-readable summary
-- `evaluation_report_*.md` - Markdown report
+Query: "What accessibility challenges arise in voice-based interfaces?"
+Category: voice_accessibility
+Ground Truth Summary:
+Challenges include speech recognition errors, dialect bias, background noise, limited error recovery, cognitive load from memory-based commands, and privacy concerns.
+Status: ✅ Tested
+Expected Topics: speech bias, noise issues, repair mechanisms, memory load, privacy
 
-## Notes
+Additional Queries in Dataset (Not Tested)
 
-- Queries are selected in order from `data/example_queries.json`
-- The system processes each query through the full multi-agent workflow
-- Each response is evaluated using LLM-as-a-Judge with two perspectives (Academic and User Experience)
-- Evaluation includes scores for: relevance, evidence quality, factual accuracy, safety compliance, and clarity
+These queries exist in data/example_queries.json but were not evaluated in this run due to prolonged response times and model switching:
 
+Multimodal Learning: "How can multimodal interaction improve learning outcomes in educational apps?"
+
+Emotion-Aware Interfaces: "What are the limitations of emotion detection in adaptive interfaces?"
+
+Health Wearable Engagement: "Which factors drive long-term engagement with health wearables?"
+
+AI-Driven Prototyping: "How is AI reshaping rapid UI/UX prototyping workflows?"
+
+Cross-Platform Design Consistency: "What strategies ensure consistency across mobile, tablet, and desktop interfaces?"

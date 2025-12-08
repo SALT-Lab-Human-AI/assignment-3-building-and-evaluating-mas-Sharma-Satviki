@@ -16,7 +16,7 @@ import asyncio
 class PaperSearchTool:
     """
     Tool for searching academic papers via Semantic Scholar API.
-    
+
     Semantic Scholar provides free access to academic papers with
     rich metadata including citations, abstracts, and author information.
     API key is optional but recommended for higher rate limits.
@@ -34,7 +34,7 @@ class PaperSearchTool:
 
         # API key is optional for Semantic Scholar
         self.api_key = os.getenv("SEMANTIC_SCHOLAR_API_KEY")
-        
+
         if not self.api_key:
             self.logger.info("No Semantic Scholar API key found. Using anonymous access (lower rate limits)")
 
@@ -75,24 +75,24 @@ class PaperSearchTool:
 
         try:
             from semanticscholar import SemanticScholar
-            
+
             # Initialize Semantic Scholar client
             sch = SemanticScholar(api_key=self.api_key)
-            
+
             # Define fields to retrieve
             fields = kwargs.get("fields", [
                 "paperId", "title", "authors", "year", "abstract",
                 "citationCount", "url", "venue", "openAccessPdf"
             ])
-            
+
             # Perform search with strict limit
             # Note: search_paper returns an iterator, so we need to limit it
             results = sch.search_paper(
-                query, 
+                query,
                 limit=min(self.max_results, 50),  # Cap at 50 to avoid excessive API calls
                 fields=fields
             )
-            
+
             # Convert iterator to list and limit immediately
             # This prevents the library from fetching more than needed
             results_list = []
@@ -102,16 +102,16 @@ class PaperSearchTool:
                     break
                 results_list.append(paper)
                 count += 1
-            
+
             # Parse and filter results
             papers = self._parse_results(results_list, year_from, year_to, min_citations)
-            
+
             # Further limit to max_results after filtering
             papers = papers[:self.max_results]
-            
+
             self.logger.info(f"Found {len(papers)} papers (limited to {self.max_results})")
             return papers
-            
+
         except ImportError:
             self.logger.error("semanticscholar library not installed. Run: pip install semanticscholar")
             return []
@@ -131,10 +131,10 @@ class PaperSearchTool:
         """
         try:
             from semanticscholar import SemanticScholar
-            
+
             sch = SemanticScholar(api_key=self.api_key)
             paper = sch.get_paper(paper_id)
-            
+
             return {
                 "paper_id": paper.paperId,
                 "title": paper.title,
@@ -163,11 +163,11 @@ class PaperSearchTool:
         """
         try:
             from semanticscholar import SemanticScholar
-            
+
             sch = SemanticScholar(api_key=self.api_key)
             paper = sch.get_paper(paper_id)
             citations = paper.citations[:limit] if paper.citations else []
-            
+
             return [
                 {
                     "paper_id": c.paperId,
@@ -193,11 +193,11 @@ class PaperSearchTool:
         """
         try:
             from semanticscholar import SemanticScholar
-            
+
             sch = SemanticScholar(api_key=self.api_key)
             paper = sch.get_paper(paper_id)
             references = paper.references[:limit] if paper.references else []
-            
+
             return [
                 {
                     "paper_id": r.paperId,
@@ -219,24 +219,24 @@ class PaperSearchTool:
     ) -> List[Dict[str, Any]]:
         """
         Parse and filter search results from Semantic Scholar.
-        
+
         Args:
             results: List of paper objects from Semantic Scholar API (already limited)
             year_from: Minimum year filter
             year_to: Maximum year filter
             min_citations: Minimum citation count filter
-            
+
         Returns:
             Filtered and formatted list of papers
         """
         papers = []
-        
+
         # results should already be a list (not an iterator) after our fix
         for paper in results:
             # Skip papers without basic metadata
             if not paper or not hasattr(paper, 'title'):
                 continue
-                
+
             paper_dict = {
                 "paper_id": paper.paperId if hasattr(paper, 'paperId') else None,
                 "title": paper.title if hasattr(paper, 'title') else "Unknown",
@@ -248,13 +248,13 @@ class PaperSearchTool:
                 "venue": paper.venue if hasattr(paper, 'venue') else "",
                 "pdf_url": paper.openAccessPdf.get("url") if hasattr(paper, 'openAccessPdf') and paper.openAccessPdf else None,
             }
-            
+
             papers.append(paper_dict)
-        
+
         # Apply filters
         papers = self._filter_by_year(papers, year_from, year_to)
         papers = self._filter_by_citations(papers, min_citations)
-        
+
         return papers
 
     def _filter_by_year(
@@ -284,12 +284,12 @@ class PaperSearchTool:
 def paper_search(query: str, max_results: int = 10, year_from: Optional[int] = None) -> str:
     """
     Synchronous wrapper for paper search (for AutoGen tool integration).
-    
+
     Args:
         query: Search query
         max_results: Maximum results to return
         year_from: Only return papers from this year onwards
-        
+
     Returns:
         Formatted string with paper results
     """
@@ -308,32 +308,32 @@ def paper_search(query: str, max_results: int = 10, year_from: Optional[int] = N
     except RuntimeError:
         # No event loop exists, create a new one
         results = asyncio.run(tool.search(query, year_from=year_from))
-    
+
     if not results:
         return "No academic papers found."
-    
+
     # Format results as readable text
     output = f"Found {len(results)} academic papers for '{query}':\n\n"
-    
+
     for i, paper in enumerate(results, 1):
         authors = ", ".join([a["name"] for a in paper["authors"][:3]])
         if len(paper["authors"]) > 3:
             authors += " et al."
-            
+
         output += f"{i}. {paper['title']}\n"
         output += f"   Authors: {authors}\n"
         output += f"   Year: {paper['year']} | Citations: {paper['citation_count']}"
         if paper.get('venue'):
             output += f" | Venue: {paper['venue']}"
         output += "\n"
-        
+
         if paper.get('abstract'):
             abstract = paper['abstract'][:200] + "..." if len(paper['abstract']) > 200 else paper['abstract']
             output += f"   Abstract: {abstract}\n"
-            
+
         output += f"   URL: {paper['url']}\n"
         output += "\n"
-    
+
     return output
 
 
